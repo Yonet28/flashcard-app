@@ -108,7 +108,7 @@ function App() {
       <div className="dashboard-layout">
         <aside className="sidebar">
           <div className="card-form">
-            <h2>✨ Nouvelle Carte</h2>
+            <h2>Nouvelle Carte</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Question</label>
@@ -145,8 +145,8 @@ function App() {
                         onClick={(e) => e.stopPropagation()}
                     />
                     <div className="edit-actions">
-                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">💾</button>
-                        <button onClick={cancelEdit} className="btn-cancel">❌</button>
+                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Modifier</button>
+                        <button onClick={cancelEdit} className="btn-cancel">Annuler</button>
                     </div>
                 </div>
               ) : (
@@ -155,7 +155,7 @@ function App() {
                     <span className="badge question">Question</span>
                     <p className="card-text">{card.question}</p>
                     <div className="actions-bar">
-                        <button onClick={(e) => startEditing(e, card)} className="btn-icon">✏️</button>
+                        <button onClick={(e) => startEditing(e, card)} className="btn-delete">Modifier</button>
                     </div>
                     <span className="hint">Cliquez pour retourner ↻</span>
                   </div>
