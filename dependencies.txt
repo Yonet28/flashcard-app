@@ -1,4 +1,4 @@
-Liste des dépendances du projet FlashMaster :
+Project Dependencies (FlashMaster):
 
 DEPENDANCES DE PRODUCTION (Backend) :
 - express: ^4.18.x 
