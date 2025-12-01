@@ -31,7 +31,7 @@ function App() {
       const data = await response.json();
       setCards(data);
     } catch (error) {
-      console.error("Erreur:", error);
+      console.error("Error:", error);
     }
   };
 
@@ -54,7 +54,7 @@ function App() {
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
-    if (window.confirm("Voulez-vous vraiment supprimer cette carte ?")) {
+    if (window.confirm("Are you sure you want to delete this card ?")) {
         await fetch(`/api/cards/${id}`, { method: 'DELETE' });
         fetchCards();
     }
@@ -92,7 +92,7 @@ function App() {
   if (!userId) {
     return (
       <div className="app-container">
-        <header><h1>🧠 FlashMaster</h1><p>Connectez-vous pour réviser</p></header>
+        <header><h1>🧠 FlashMaster</h1><p>Get connected to study</p></header>
         <Auth onLogin={handleLogin} />
       </div>
     );
@@ -101,8 +101,8 @@ function App() {
   return (
     <div className="app-container">
       <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap'}}>
-        <div><h1>🧠 FlashMaster</h1><p>Bienvenue dans votre espace</p></div>
-        <button onClick={handleLogout} className="btn-delete" style={{marginTop:0, background: '#ef4444'}}>Déconnexion</button>
+        <div><h1>🧠 FlashMaster</h1><p>Welcome to your space</p></div>
+        <button onClick={handleLogout} className="btn-delete" style={{marginTop:0, background: '#ef4444'}}>Disconnect</button>
       </header>
 
       <div className="dashboard-layout">
@@ -112,13 +112,13 @@ function App() {
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Question</label>
-                <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ex: Capitale de la France ?" required />
+                <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ex: Capital of France ?" required />
               </div>
               <div className="form-group">
-                <label>Réponse</label>
+                <label>answer</label>
                 <input type="text" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Ex: Paris" required />
               </div>
-              <button type="submit" className="btn-add">Ajouter la carte</button>
+              <button type="submit" className="btn-add">add card</button>
             </form>
           </div>
         </aside>
@@ -135,18 +135,18 @@ function App() {
                     <input 
                         value={editQuestion} 
                         onChange={(e) => setEditQuestion(e.target.value)} 
-                        placeholder="Modifier la question"
+                        placeholder="Modify the question"
                         onClick={(e) => e.stopPropagation()} 
                     />
                     <input 
                         value={editAnswer} 
                         onChange={(e) => setEditAnswer(e.target.value)} 
-                        placeholder="Modifier la réponse"
+                        placeholder="Modify the answer"
                         onClick={(e) => e.stopPropagation()}
                     />
                     <div className="edit-actions">
-                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Modifier</button>
-                        <button onClick={cancelEdit} className="btn-cancel">Annuler</button>
+                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Edit</button>
+                        <button onClick={cancelEdit} className="btn-cancel">Cancel</button>
                     </div>
                 </div>
               ) : (
@@ -155,14 +155,14 @@ function App() {
                     <span className="badge question">Question</span>
                     <p className="card-text">{card.question}</p>
                     <div className="actions-bar">
-                        <button onClick={(e) => startEditing(e, card)} className="btn-delete">Modifier</button>
+                        <button onClick={(e) => startEditing(e, card)} className="btn-delete">Modify</button>
                     </div>
-                    <span className="hint">Cliquez pour retourner ↻</span>
+                    <span className="hint">Click to return ↻</span>
                   </div>
                   <div className="flashcard-back">
-                    <span className="badge answer">Réponse</span>
+                    <span className="badge answer">answer</span>
                     <p className="card-text">{card.answer}</p>
-                    <button onClick={(e) => handleDelete(e, card._id)} className="btn-delete">Supprimer</button>
+                    <button onClick={(e) => handleDelete(e, card._id)} className="btn-delete">Delete</button>
                   </div>
                 </div>
               )}
