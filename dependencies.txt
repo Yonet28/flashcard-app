@@ -1,4 +1,4 @@
-Project Dependencies (FlashMaster):
+Project Dependencies:
 
 DEPENDANCES DE PRODUCTION (Backend) :
 - express: ^4.18.x 
