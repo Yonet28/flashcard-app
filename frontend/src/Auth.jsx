@@ -23,11 +23,11 @@ function Auth({ onLogin }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Une erreur est survenue");
+        throw new Error(data.error || "An error occurred");
       }
 
       if (isRegistering) {
-        alert("Compte créé avec succès ! Connectez-vous maintenant.");
+        alert("Account created successfully! Please log in now.");
         setIsRegistering(false);
       } else {
         onLogin(data.userId);
@@ -41,13 +41,13 @@ function Auth({ onLogin }) {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2>{isRegistering ? "🚀 Inscription" : "👋 Connexion"}</h2>
+        <h2>{isRegistering ? "Registration" : "👋 Login"}</h2>
         
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Pseudo</label>
+            <label>Username</label>
             <input 
               type="text" 
               value={username}
@@ -56,7 +56,7 @@ function Auth({ onLogin }) {
             />
           </div>
           <div className="form-group">
-            <label>Mot de passe</label>
+            <label>Password</label>
             <input 
               type="password" 
               value={password}
@@ -65,14 +65,14 @@ function Auth({ onLogin }) {
             />
           </div>
           <button type="submit" className="btn-primary">
-            {isRegistering ? "S'inscrire" : "Se connecter"}
+            {isRegistering ? "Register" : "Login"}
           </button>
         </form>
 
         <p className="switch-mode">
-          {isRegistering ? "Déjà un compte ?" : "Pas encore de compte ?"}
+          {isRegistering ? "Already have an account?" : "Don't have an account yet?"}
           <button onClick={() => setIsRegistering(!isRegistering)}>
-            {isRegistering ? "Se connecter" : "Créer un compte"}
+            {isRegistering ? "Login" : "Register"}
           </button>
         </p>
       </div>
