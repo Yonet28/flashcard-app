@@ -1,21 +1,15 @@
-import { MongoClient } from "mongodb";
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const client = new MongoClient(process.env.MONGO_URI);
-let db;
-
 export async function connectToDb() {
   try {
-    await client.connect();
-    db = client.db("flashcardApp"); 
-    console.log("Connecté à MongoDB avec succès !");
+    await mongoose.connect(process.env.MONGO_URI, {
+      dbName: 'flashcardApp' 
+    });
+    console.log("Connecté à MongoDB via Mongoose !");
   } catch (error) {
     console.error("Erreur de connexion MongoDB :", error);
   }
-}
-
-export function getDb() {
-  return db;
 }
