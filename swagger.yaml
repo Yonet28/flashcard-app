@@ -1,0 +1,162 @@
+openapi: 3.0.0
+info:
+  title: FlashMaster API
+  description: API de gestion de cartes mémoire (Flashcards)
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Serveur de développement
+
+paths:
+  # --- ROUTES UTILISATEURS ---
+  /users/register:
+    post:
+      summary: Inscription d'un nouvel utilisateur
+      tags: [Utilisateurs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        201:
+          description: Utilisateur créé avec succès
+        400:
+          description: Erreur (pseudo déjà pris ou données manquantes)
+
+  /users/login:
+    post:
+      summary: Connexion utilisateur
+      tags: [Utilisateurs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+        401:
+          description: Identifiants incorrects
+
+  # --- ROUTES CARTES ---
+  /cards:
+    get:
+      summary: Récupérer toutes les cartes d'un utilisateur
+      tags: [Cartes]
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          required: true
+          description: L'ID de l'utilisateur propriétaire des cartes
+      responses:
+        200:
+          description: Liste des cartes récupérée
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    question:
+                      type: string
+                    answer:
+                      type: string
+                    userId:
+                      type: string
+        400:
+          description: UserId manquant
+
+    post:
+      summary: Créer une nouvelle carte
+      tags: [Cartes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question
+                - answer
+                - userId
+              properties:
+                question:
+                  type: string
+                answer:
+                  type: string
+                userId:
+                  type: string
+      responses:
+        201:
+          description: Carte créée
+
+  /cards/{id}:
+    put:
+      summary: Modifier une carte
+      tags: [Cartes]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID de la carte à modifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                answer:
+                  type: string
+      responses:
+        200:
+          description: Carte mise à jour
+
+    delete:
+      summary: Supprimer une carte
+      tags: [Cartes]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID de la carte à supprimer
+      responses:
+        200:
+          description: Carte supprimée
