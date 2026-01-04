@@ -1,0 +1,184 @@
+openapi: 3.0.0
+info:
+  title: FlashMaster API
+  description: API for managing flashcards
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Development Server
+
+paths:
+  # --- USERS ROUTES ---
+  /users/register:
+    post:
+      summary: Register a new user
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        201:
+          description: User created successfully
+        400:
+          description: Error (username taken or missing data)
+
+  /users/login:
+    post:
+      summary: User login
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+        401:
+          description: Invalid credentials
+
+  # --- FOLDERS ROUTES ---
+  /folders:
+    get:
+      summary: Get all folders for a user
+      tags: [Folders]
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: List of folders
+    
+    post:
+      summary: Create a new folder
+      tags: [Folders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - userId
+              properties:
+                name:
+                  type: string
+                userId:
+                  type: string
+      responses:
+        201:
+          description: Folder created
+
+  # --- CARDS ROUTES ---
+  /cards:
+    get:
+      summary: Get all cards (optionally filtered by user)
+      tags: [Cards]
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: List of cards
+        400:
+          description: Missing UserId
+
+    post:
+      summary: Create a new card
+      tags: [Cards]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question
+                - answer
+                - userId
+              properties:
+                question:
+                  type: string
+                answer:
+                  type: string
+                userId:
+                  type: string
+                folderId:
+                  type: string
+      responses:
+        201:
+          description: Card created
+
+  /cards/{id}:
+    put:
+      summary: Update a card
+      tags: [Cards]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                answer:
+                  type: string
+                userId:
+                   type: string
+      responses:
+        200:
+          description: Card updated
+
+    delete:
+      summary: Delete a card
+      tags: [Cards]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: Card deleted
