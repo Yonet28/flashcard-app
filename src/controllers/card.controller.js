@@ -14,7 +14,6 @@ export async function listCards(req, res) {
   }
 }
 
-// CREATE CARD 
 export async function createCard(req, res) {
   try {
     let { question, answer, userId, folderId } = req.body;
