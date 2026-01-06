@@ -175,13 +175,24 @@ function App() {
                 </button>
 
                 {folders.map(folder => (
-                    <button 
-                        key={folder._id} 
-                        onClick={() => { setSelectedFolder(folder._id); setTargetFolderId(folder._id); }}
-                        style={{ background: selectedFolder === folder._id ? "#00cec9" : "#333", border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', color: 'white' }}
-                    >
-                        📁 {folder.name}
-                    </button>
+                  <button 
+                    key={folder._id} 
+                    onClick={() => { setSelectedFolder(folder._id); setTargetFolderId(folder._id); }}
+                    title={folder.isGlobal ? "Official Admin Folder" : "My Personal Folder"} 
+                    style={{ 
+                      background: selectedFolder === folder._id ? "#00cec9" : "#333", 
+                      border: folder.isGlobal ? '1px solid #ffd700' : 'none', 
+                      padding: '8px 15px', 
+                      borderRadius: '5px', 
+                      cursor: 'pointer', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    {folder.isGlobal ? "⭐" : "📁"} {folder.name}
+                  </button>
                 ))}
 
                 <form onSubmit={createFolder} style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>

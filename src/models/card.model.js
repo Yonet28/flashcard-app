@@ -5,8 +5,7 @@ const cardSchema = new mongoose.Schema(
     question: { type: String, required: true },
     answer: { type: String, required: true },
     userId: { type: String, required: true },
-    folderId: { type: mongoose.Schema.Types.ObjectId, ref: "Folder" },
-    
+    folderId: { type: String, default: null },    
     lastReviewedAt: { type: Date, default: Date.now } 
   },
   { timestamps: true }

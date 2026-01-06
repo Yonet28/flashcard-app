@@ -3,18 +3,19 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import app from '../src/app.js';
 import { connectToDb } from '../src/db/mongo.js';
+import Card from '../src/models/card.model.js';
 
-const TEST_USER_ID = "user_test_123";
+const TEST_USER_ID = "user_test_vitest_123";
 let createdCardId = "";
 
-describe("Flashcards API", () => {
+describe("Flashcards API Integration Tests", () => {
 
   beforeAll(async () => {
     await connectToDb();
   });
 
   afterAll(async () => {
-     
+    await Card.deleteMany({ userId: TEST_USER_ID });
     await mongoose.connection.close();
   });
 
@@ -42,15 +43,17 @@ describe("Flashcards API", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     
-    const found = res.body.find(card => card._id.toString() === createdCardId.toString());
+    const found = res.body.find(card => card._id === createdCardId);
+    
     expect(found).toBeTruthy();
     expect(found.question).toBe("Test Question Vitest");
   });
 
-  it("PUT /api/cards/:id", async () => {
+  it("PUT /api/cards/:id - Doit mettre à jour la carte", async () => {
     const updatedData = {
       question: "Question Modifiée",
-      answer: "Réponse Modifiée"
+      answer: "Réponse Modifiée",
+      userId: TEST_USER_ID 
     };
 
     const res = await request(app)
@@ -58,15 +61,15 @@ describe("Flashcards API", () => {
       .send(updatedData);
 
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Carte mise à jour");
+    expect(res.body.card.question).toBe("Question Modifiée");
   });
 
-  it("DELETE /api/cards/:id", async () => {
+  it("DELETE /api/cards/:id - Doit supprimer la carte", async () => {
     const res = await request(app)
       .delete(`/api/cards/${createdCardId}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Carte supprimée");
+    expect(res.body.message).toBe("Card deleted");
   });
 
 });
