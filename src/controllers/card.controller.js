@@ -43,27 +43,56 @@ export async function createCard(req, res) {
 export async function updateCard(req, res) {
     try {
         const { id } = req.params;
-        let { question, answer, userId } = req.body; 
-        const card = await Card.findById(id);
-        if (!card || card.userId.toString() !== userId) return res.status(403).json({ error: "Unauthorized" });
+        let { question, answer, userId, userRole } = req.body; 
+    
+        if (!question && !answer) return res.status(400).json({ error: "No data to update" });
+    
+        const cardToUpdate = await Card.findById(id);
+        if (!cardToUpdate) return res.status(404).json({ error: "Card not found" });
+    
+        const isOwner = cardToUpdate.userId.toString() === userId;
+        const isAdmin = userRole === 'admin';
 
-        const updated = await Card.findByIdAndUpdate(id, { 
-            question: xss(question), 
-            answer: xss(answer) 
-        }, { new: true });
-        res.status(200).json(updated);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ error: "Interdit : Vous ne pouvez pas toucher à la carte d'un autre (sauf admin)" });
+        }
+    
+        if (question) question = xss(question);
+        if (answer) answer = xss(answer);
+    
+        const updatedCard = await Card.findByIdAndUpdate(
+            id, 
+            { question, answer, lastReviewedAt: new Date() }, 
+            { new: true }
+        );
+    
+        res.status(200).json({ message: "Card updated", card: updatedCard });
+      } catch (err) {
+        res.status(500).json({ error: "Update error" });
+      }
 }
 
 export async function deleteCard(req, res) {
     try {
-        await Card.findByIdAndDelete(req.params.id);
-        res.status(200).json({ message: "Deleted" });
-    } catch (err) {
+        const { id } = req.params;
+        const { userId, userRole } = req.body; 
+
+        const cardToDelete = await Card.findById(id);
+        if (!cardToDelete) return res.status(404).json({ error: "Card not found" });
+
+        const isOwner = cardToDelete.userId.toString() === userId;
+        const isAdmin = userRole === 'admin';
+
+        if (!isOwner && !isAdmin) {
+             return res.status(403).json({ error: "Unautorized" });
+        }
+
+        await cardToDelete.deleteOne();
+        res.status(200).json({ message: "Card deleted" });
+
+      } catch (err) {
         res.status(500).json({ error: err.message });
-    }
+      }
 }
 
 export async function answerCard(req, res) {
