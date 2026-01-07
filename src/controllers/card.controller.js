@@ -54,7 +54,7 @@ export async function updateCard(req, res) {
         const isAdmin = userRole === 'admin';
 
         if (!isOwner && !isAdmin) {
-            return res.status(403).json({ error: "Interdit : Vous ne pouvez pas toucher à la carte d'un autre (sauf admin)" });
+            return res.status(403).json({ error: "Prohibited: You may not touch another person's card." });
         }
     
         if (question) question = xss(question);
@@ -84,7 +84,7 @@ export async function deleteCard(req, res) {
         const isAdmin = userRole === 'admin';
 
         if (!isOwner && !isAdmin) {
-             return res.status(403).json({ error: "Unautorized" });
+             return res.status(403).json({ error: "Prohibited: You may not touch another person's card." });
         }
 
         await cardToDelete.deleteOne();
