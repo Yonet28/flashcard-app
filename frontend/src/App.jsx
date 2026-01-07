@@ -3,23 +3,26 @@ import Auth from './Auth';
 import './App.css';
 
 function App() {
-  // STATES 
-  const [folders, setFolders] = useState([]); 
-  const [selectedFolder, setSelectedFolder] = useState(null); 
-  const [targetFolderId, setTargetFolderId] = useState("");   
-  const [newFolderName, setNewFolderName] = useState(""); 
+  // --- STATES ---
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [targetFolderId, setTargetFolderId] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
   const [userId, setUserId] = useState(localStorage.getItem("userId"));
-  
+
   const [cards, setCards] = useState([]);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [flippedCardId, setFlippedCardId] = useState(null);
 
-  const [editingId, setEditingId] = useState(null); 
+  const [editingId, setEditingId] = useState(null);
   const [editQuestion, setEditQuestion] = useState("");
   const [editAnswer, setEditAnswer] = useState("");
 
-  // AUTH 
+  // NOUVEAU : État pour le filtrage par date
+  const [reviewMode, setReviewMode] = useState(false);
+
+  // --- AUTH ---
   const handleLogin = (id) => {
     setUserId(id);
     localStorage.setItem("userId", id);
@@ -30,7 +33,7 @@ function App() {
     localStorage.removeItem("userId");
   };
 
-  // API FETCH 
+  // --- API FETCH ---
   const fetchCards = async () => {
     if (!userId) return;
     try {
@@ -56,7 +59,7 @@ function App() {
     }
   }, [userId]);
 
-  // ACTIONS 
+  // --- ACTIONS ---
 
   const createFolder = async (e) => {
     e.preventDefault();
@@ -76,11 +79,11 @@ function App() {
     e.preventDefault();
     const folderToUse = targetFolderId || selectedFolder;
 
-    const newCard = { 
-        question, 
-        answer, 
-        userId,
-        folderId: folderToUse || null 
+    const newCard = {
+      question,
+      answer,
+      userId,
+      folderId: folderToUse || null
     };
 
     await fetch('/api/cards', {
@@ -93,23 +96,44 @@ function App() {
     fetchCards();
   };
 
+  // NOUVEAU : Gérer la réponse (Correct/Faux)
+  const handleAnswer = async (e, id, isValid) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/cards/${id}/answer`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isValid })
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        alert(data.error);
+        return;
+      }
+
+      setFlippedCardId(null);
+      fetchCards();
+    } catch (error) { console.error("Error answering card:", error); }
+  };
+
   const handleDelete = async (e, id) => {
     e.stopPropagation();
     if (window.confirm("Delete this card?")) {
-        await fetch(`/api/cards/${id}`, { method: 'DELETE' });
-        fetchCards();
+      await fetch(`/api/cards/${id}`, { method: 'DELETE' });
+      fetchCards();
     }
   };
 
-  // EDIT 
+  // --- EDIT ---
   const saveEdit = async (e, id) => {
     e.stopPropagation();
     await fetch(`/api/cards/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: editQuestion, answer: editAnswer, userId })
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: editQuestion, answer: editAnswer, userId })
     });
-    setEditingId(null); 
+    setEditingId(null);
     fetchCards();
   };
 
@@ -117,38 +141,49 @@ function App() {
   const cancelEdit = (e) => { e.stopPropagation(); setEditingId(null); };
   const handleCardClick = (id) => { if (editingId === id) return; setFlippedCardId(flippedCardId === id ? null : id); };
 
-  // Filter logic
-  const filteredCards = selectedFolder 
-    ? cards.filter(card => card.folderId === selectedFolder) 
-    : cards;
+  // --- LOGIQUE DE FILTRAGE (Dossiers + Date) ---
+  const filteredCards = cards.filter(card => {
+    const matchesFolder = selectedFolder ? card.folderId === selectedFolder : true;
+    const isDue = new Date(card.nextReviewAt) <= new Date();
+    // Si reviewMode est actif, on ne garde que les cartes dues
+    return matchesFolder && (reviewMode ? isDue : true);
+  });
 
-  // RENDER 
+  // --- RENDER ---
   if (!userId) return <div className="app-container"><Auth onLogin={handleLogin} /></div>;
 
   return (
     <div className="app-container">
-      <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>🧠 FlashMaster</h1>
-        <button onClick={handleLogout} className="btn-delete" style={{marginTop:0, background: '#ef4444'}}>Logout</button>
+        <button onClick={handleLogout} className="btn-delete" style={{ marginTop: 0, background: '#ef4444' }}>Logout</button>
       </header>
 
       <div className="dashboard-layout">
         <aside className="sidebar">
+          {/* NOUVEAU : Bouton Review Mode */}
+          <button 
+            onClick={() => setReviewMode(!reviewMode)} 
+            className="btn-add" 
+            style={{ marginBottom: '25px', background: reviewMode ? '#f1c40f' : '#6366f1', color: reviewMode ? 'black' : 'white' }}
+          >
+            {reviewMode ? "🎯 Finish Review" : "🚀 Start Review Mode"}
+          </button>
+
           <div className="card-form">
             <h2>New Card</h2>
             <form onSubmit={handleSubmit}>
-              
               <div className="form-group">
                 <label>Folder</label>
-                <select 
-                    value={targetFolderId} 
-                    onChange={(e) => setTargetFolderId(e.target.value)}
-                    style={{width: '100%', padding: '8px', borderRadius: '5px', background: '#333', color: 'white', border: '1px solid #555'}}
+                <select
+                  value={targetFolderId}
+                  onChange={(e) => setTargetFolderId(e.target.value)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '5px', background: '#333', color: 'white', border: '1px solid #555' }}
                 >
-                    <option value="">📂 No Folder (Root)</option>
-                    {folders.map(folder => (
-                        <option key={folder._id} value={folder._id}>📁 {folder.name}</option>
-                    ))}
+                  <option value="">📂 No Folder (Root)</option>
+                  {folders.map(folder => (
+                    <option key={folder._id} value={folder._id}>📁 {folder.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -166,75 +201,95 @@ function App() {
         </aside>
 
         <main className="main-content">
-            <div className="folders-bar" style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <button 
-                    onClick={() => { setSelectedFolder(null); setTargetFolderId(""); }} 
-                    style={{ background: selectedFolder === null ? "#00cec9" : "#333", border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', color: 'white' }}
-                >
-                📂 All Cards
-                </button>
+          <div className="folders-bar" style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setSelectedFolder(null); setTargetFolderId(""); }}
+              style={{ background: selectedFolder === null ? "#00cec9" : "#333", border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', color: 'white' }}
+            >
+              📂 All Cards
+            </button>
 
-                {folders.map(folder => (
-                  <button 
-                    key={folder._id} 
-                    onClick={() => { setSelectedFolder(folder._id); setTargetFolderId(folder._id); }}
-                    title={folder.isGlobal ? "Official Admin Folder" : "My Personal Folder"} 
-                    style={{ 
-                      background: selectedFolder === folder._id ? "#00cec9" : "#333", 
-                      border: folder.isGlobal ? '1px solid #ffd700' : 'none', 
-                      padding: '8px 15px', 
-                      borderRadius: '5px', 
-                      cursor: 'pointer', 
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    {folder.isGlobal ? "⭐" : "📁"} {folder.name}
-                  </button>
-                ))}
-
-                <form onSubmit={createFolder} style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>
-                    <input type="text" placeholder="New folder..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", background: "#222", color: "white" }} />
-                    <button type="submit" style={{cursor: 'pointer', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '5px'}}>➕</button>
-                </form>
-            </div>
-
-            <div className="card-grid">
-            {filteredCards.length === 0 && <p style={{color: '#666', gridColumn: '1 / -1', textAlign: 'center'}}>No cards here.</p>}
-            
-            {filteredCards.map((card) => (
-                <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => handleCardClick(card._id)}>
-                    {editingId === card._id ? (
-                        <div className="card-edit-form">
-                            <input value={editQuestion} onChange={(e) => setEditQuestion(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                            <input value={editAnswer} onChange={(e) => setEditAnswer(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                            <div className="edit-actions">
-                                <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Save</button>
-                                <button onClick={cancelEdit} className="btn-cancel">Cancel</button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flashcard-inner">
-                            <div className="flashcard-front">
-                                <span className="badge question">Question</span>
-                                <p className="card-text">{card.question}</p>
-                                <p style={{ fontSize: '0.7rem', color: '#888', marginTop: '10px' }}>
-                                    Last reviewed: {card.lastReviewedAt ? new Date(card.lastReviewedAt).toLocaleDateString('en-US') : "Never"}
-                                </p>
-                                <div className="actions-bar"><button onClick={(e) => startEditing(e, card)} className="btn-icon">Modify</button></div>
-                            </div>
-                            <div className="flashcard-back">
-                                <span className="badge answer">Answer</span>
-                                <p className="card-text">{card.answer}</p>
-                                <button onClick={(e) => handleDelete(e, card._id)} className="btn-delete">Delete</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+            {folders.map(folder => (
+              <button
+                key={folder._id}
+                onClick={() => { setSelectedFolder(folder._id); setTargetFolderId(folder._id); }}
+                title={folder.isGlobal ? "Official Admin Folder" : "My Personal Folder"}
+                style={{
+                  background: selectedFolder === folder._id ? "#00cec9" : "#333",
+                  border: folder.isGlobal ? '1px solid #ffd700' : 'none',
+                  padding: '8px 15px',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                {folder.isGlobal ? "⭐" : "📁"} {folder.name}
+              </button>
             ))}
-            </div>
+
+            <form onSubmit={createFolder} style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>
+              <input type="text" placeholder="New folder..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", background: "#222", color: "white" }} />
+              <button type="submit" style={{ cursor: 'pointer', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '5px', padding: '0 10px' }}>➕</button>
+            </form>
+          </div>
+
+          <div className="card-grid">
+            {filteredCards.length === 0 && <p style={{ color: '#666', gridColumn: '1 / -1', textAlign: 'center' }}>No cards here.</p>}
+
+            {filteredCards.map((card) => {
+              const isEarly = new Date(card.nextReviewAt) > new Date();
+
+              return (
+                <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => handleCardClick(card._id)}>
+                  {editingId === card._id ? (
+                    <div className="card-edit-form">
+                      <input value={editQuestion} onChange={(e) => setEditQuestion(e.target.value)} onClick={(e) => e.stopPropagation()} />
+                      <input value={editAnswer} onChange={(e) => setEditAnswer(e.target.value)} onClick={(e) => e.stopPropagation()} />
+                      <div className="edit-actions">
+                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Save</button>
+                        <button onClick={cancelEdit} className="btn-cancel">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flashcard-inner">
+                      <div className="flashcard-front">
+                        {/* NOUVEAU : Badge de niveau */}
+                        <span className="badge question">LVL {card.category || 1}</span>
+                        <p className="card-text">{card.question}</p>
+                        <p style={{ fontSize: '0.7rem', color: '#888', marginTop: '10px' }}>
+                          Last reviewed: {card.lastReviewedAt ? new Date(card.lastReviewedAt).toLocaleDateString('en-US') : "Never"}
+                        </p>
+                        <div className="actions-bar"><button onClick={(e) => startEditing(e, card)} className="btn-icon">Modify</button></div>
+                      </div>
+                      <div className="flashcard-back">
+                        <span className="badge answer">Answer</span>
+                        <p className="card-text">{card.answer}</p>
+                        
+                        {/* NOUVEAU : Actions de révision */}
+                        <div style={{ marginTop: 'auto', marginBottom: '10px' }}>
+                          {isEarly ? (
+                            <p style={{ fontSize: '0.7rem', color: '#f1c40f' }}>
+                              ⏳ Next review: {new Date(card.nextReviewAt).toLocaleDateString()}
+                            </p>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button onClick={(e) => handleAnswer(e, card._id, false)} style={{ background: '#ff7675', border: 'none', borderRadius: '5px', padding: '5px 12px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}>❌ Wrong</button>
+                              <button onClick={(e) => handleAnswer(e, card._id, true)} style={{ background: '#55efc4', border: 'none', borderRadius: '5px', padding: '5px 12px', cursor: 'pointer', color: 'black', fontWeight: 'bold' }}>✅ Correct</button>
+                            </div>
+                          )}
+                        </div>
+
+                        <button onClick={(e) => handleDelete(e, card._id)} className="btn-delete" style={{ fontSize: '0.7rem' }}>Delete Card</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </main>
       </div>
     </div>
