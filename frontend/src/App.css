@@ -1,3 +1,4 @@
+/* --- VARIABLES GLOBALES --- */
 :root {
   --bg-dark: #121212;
   --panel-dark: #1e1e1e;
@@ -8,13 +9,16 @@
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f1c40f;
+  --card-shadow: 0 10px 20px rgba(0,0,0,0.3);
 }
 
+/* --- RESET & BASE --- */
 body {
   margin: 0;
   background-color: var(--bg-dark);
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
@@ -23,25 +27,34 @@ body {
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
+  min-height: 100vh;
 }
 
-header {
-  text-align: center;
+/* --- HEADER --- */
+header.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 40px;
   padding-bottom: 20px;
   border-bottom: 1px solid #333;
 }
 
 header h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin: 0;
   background: linear-gradient(to right, var(--primary), var(--secondary));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  transition: opacity 0.2s;
 }
 
-/* --- CONSISTENT BUTTON STYLE --- */
+header h1:hover {
+  opacity: 0.8;
+}
+
+/* --- STYLE DE BOUTON "MASTER" --- */
 .btn-master {
   padding: 12px 20px;
   border: none;
@@ -49,43 +62,93 @@ header h1 {
   color: white;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   font-size: 0.9rem;
+  text-decoration: none;
 }
 
-.btn-master:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-master:hover { 
+  opacity: 0.9; 
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
 .btn-master:active { transform: translateY(0); }
 
 .btn-gradient { background: linear-gradient(45deg, var(--primary), var(--secondary)); }
-.btn-danger { background: var(--danger); }
-.btn-success { background: var(--success); }
-.btn-warning { background: var(--warning); color: #000; }
-.btn-dark { background: #2a2a2a; border: 1px solid #444; }
+.btn-danger   { background: var(--danger); }
+.btn-success  { background: var(--success); }
+.btn-warning  { background: var(--warning); color: #000; }
+.btn-dark     { background: #2a2a2a; border: 1px solid #444; }
 
-/* --- LAYOUT --- */
+/* --- MENU PRINCIPAL (SELECTION DOSSIERS) --- */
+.main-menu-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  animation: fadeIn 0.5s ease;
+}
+
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 30px;
+  padding: 20px 0;
+}
+
+.folder-item {
+  text-align: center;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+  position: relative;
+}
+
+.folder-item:hover {
+  transform: translateY(-10px);
+  border-color: var(--primary);
+}
+
+.folder-icon {
+  font-size: 3.5rem;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.btn-text-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: color 0.2s;
+}
+
+.btn-text-delete:hover { color: var(--danger); }
+
+/* --- LAYOUT DASHBOARD --- */
 .dashboard-layout {
   display: grid;
-  grid-template-columns: 350px 1fr; 
+  grid-template-columns: 320px 1fr; 
   gap: 40px;
   align-items: start;
+  animation: slideIn 0.4s ease-out;
 }
 
 .sidebar { position: sticky; top: 20px; }
 
+/* --- FORMULAIRES & INPUTS --- */
 .card-form {
   background-color: var(--panel-dark);
   padding: 25px;
   border-radius: 16px;
   border: 1px solid #333;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  box-shadow: var(--card-shadow);
 }
-
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; color: var(--text-muted); }
 
 input, select {
   width: 100%;
@@ -95,39 +158,33 @@ input, select {
   border-radius: 8px;
   color: white;
   box-sizing: border-box;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  font-size: 1rem;
 }
 
-/* --- FOLDERS --- */
-.folders-bar { display: flex; gap: 12px; margin-bottom: 25px; flex-wrap: wrap; }
-
-.btn-folder {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  padding: 8px 16px;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  font-weight: 600;
+input:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
-.btn-folder.active { background: #00cec9; color: #000; border-color: #00cec9; }
-
-/* --- FLASHCARDS --- */
+/* --- FLASHCARDS (3D FLIP) --- */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 25px;
 }
 
-.flashcard { background-color: transparent; height: 260px; perspective: 1000px; }
+.flashcard { 
+  background-color: transparent; 
+  height: 280px; 
+  perspective: 1000px; 
+}
 
 .flashcard-inner {
   position: relative;
   width: 100%;
   height: 100%;
-  text-align: center;
-  transition: transform 0.6s;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   transform-style: preserve-3d;
 }
 
@@ -138,31 +195,88 @@ input, select {
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
-  border-radius: 20px;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 30px;
   box-sizing: border-box;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  box-shadow: var(--card-shadow);
 }
 
-.flashcard-front { background-color: var(--panel-dark); border: 1px solid #333; }
-.flashcard-back { background: linear-gradient(135deg, #4f46e5, #ec4899); color: white; transform: rotateY(180deg); }
+.flashcard-front { 
+  background-color: var(--panel-dark); 
+  border: 1px solid #333; 
+}
 
+.flashcard-back { 
+  background: linear-gradient(135deg, #4f46e5, #ec4899); 
+  color: white; 
+  transform: rotateY(180deg); 
+}
+
+/* --- DETAILS CARTES --- */
 .badge {
   position: absolute;
-  top: 15px;
-  font-size: 0.7rem;
+  top: 20px;
+  left: 20px;
+  font-size: 0.75rem;
   background: rgba(255,255,255,0.1);
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.card-text { font-size: 1.3rem; font-weight: 500; margin: 10px 0; }
+.card-text { 
+  font-size: 1.4rem; 
+  font-weight: 500; 
+  margin: 20px 0;
+  line-height: 1.4;
+}
 
-.actions-bar { position: absolute; top: 10px; right: 10px; }
-.btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; opacity: 0.6; transition: 0.2s; }
-.btn-icon:hover { opacity: 1; transform: scale(1.1); }
+/* --- BOUTONS TEXTUELS (MODIFIER/SUPPRIMER) --- */
+.card-actions-text {
+  margin-top: auto;
+  display: flex;
+  gap: 20px;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 5px 0;
+  transition: color 0.2s;
+}
+
+.text-btn.edit { color: var(--primary); }
+.text-btn.delete { color: var(--danger); }
+.text-btn:hover { filter: brightness(1.2); text-decoration: underline; }
+
+/* --- ANIMATIONS --- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 900px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+  }
+}
