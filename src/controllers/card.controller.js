@@ -1,4 +1,5 @@
 import Card from "../models/card.model.js";
+import User from "../models/user.model.js"; 
 import Folder from "../models/folder.model.js"; 
 import xss from "xss";
 
@@ -75,16 +76,18 @@ export async function updateCard(req, res) {
 export async function deleteCard(req, res) {
     try {
         const { id } = req.params;
-        const { userId, userRole } = req.body; 
+        const { userId } = req.body; 
 
         const cardToDelete = await Card.findById(id);
         if (!cardToDelete) return res.status(404).json({ error: "Card not found" });
 
+        const user = await User.findById(userId);
+        
         const isOwner = cardToDelete.userId.toString() === userId;
-        const isAdmin = userRole === 'admin';
+        const isAdmin = user && user.role === 'admin';
 
         if (!isOwner && !isAdmin) {
-             return res.status(403).json({ error: "Prohibited: You may not touch another person's card." });
+             return res.status(403).json({ error: "Prohibited: You do not have the rights." });
         }
 
         await cardToDelete.deleteOne();
@@ -94,6 +97,8 @@ export async function deleteCard(req, res) {
         res.status(500).json({ error: err.message });
       }
 }
+
+
 
 export async function answerCard(req, res) {
     try {

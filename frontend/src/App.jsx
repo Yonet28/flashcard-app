@@ -27,7 +27,7 @@ function App() {
       ]);
       setCards(await resC.json());
       setFolders(await resF.json());
-    } catch (e) { console.error("Erreur de chargement:", e); }
+    } catch (e) { console.error("Loading error:", e); }
   };
 
   useEffect(() => { if (userId) fetchData(); }, [userId]);
@@ -41,11 +41,23 @@ function App() {
   // --- ACTIONS DOSSIERS ---
   const deleteFolder = async (e, folderId) => {
     e.stopPropagation();
-    if (!window.confirm("Supprimer ce dossier et toutes ses cartes ?")) return;
-    await fetch(`/api/folders/${folderId}?userId=${userId}`, { method: 'DELETE' });
+    if (!window.confirm("Delete this folder ?")) return;
+
+    const response = await fetch(`/api/folders/${folderId}`, { 
+        method: 'DELETE', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId }) 
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error); 
+        return; 
+    }
+
     if (selectedFolder === folderId) setSelectedFolder(null);
     fetchData();
-  };
+};
 
   // --- ACTIONS CARTES ---
   const handleAnswer = async (e, id, isValid) => {
@@ -55,7 +67,7 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, isValid })
     });
-    if (!res.ok) return alert("Trop tôt pour réviser !");
+    if (!res.ok) return alert("Too early to revise!");
     setFlippedCardId(null);
     fetchData();
   };
@@ -73,10 +85,22 @@ function App() {
 
   const deleteCard = async (e, id) => {
     e.stopPropagation();
-    if (!window.confirm("Supprimer cette carte ?")) return;
-    await fetch(`/api/cards/${id}?userId=${userId}`, { method: 'DELETE' });
+    if (!window.confirm("Delete this card ?")) return;
+
+    const response = await fetch(`/api/cards/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId }) 
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error); 
+        return; 
+    }
+
     fetchData();
-  };
+};
 
   const filteredCards = cards.filter(c => {
     const inFolder = selectedFolder ? c.folderId === selectedFolder : true;
@@ -96,24 +120,39 @@ function App() {
       {!selectedFolder && !reviewMode ? (
         /* --- MENU PRINCIPAL --- */
         <div className="main-menu-container">
-          <h2 style={{textAlign: 'center', marginBottom: '40px', fontSize: '2rem'}}>Mes Dossiers</h2>
+          <h2 style={{textAlign: 'center', marginBottom: '40px', fontSize: '2rem'}}>My Folders</h2>
           <div className="folder-grid">
             {folders.map(f => (
-              <div key={f._id} className="folder-item card-form" onClick={() => setSelectedFolder(f._id)}>
+              <div 
+                key={f._id} 
+                // CORRECTION 1 : On utilise les backticks `` et on vérifie 'isGlobal'
+                className={`folder-item card-form ${f.isGlobal ? 'global' : ''}`} 
+                onClick={() => setSelectedFolder(f._id)}
+              >
                 <div style={{fontSize: '3rem', marginBottom: '10px'}}>📁</div>
-                <h3 style={{margin: '10px 0'}}>{f.isAdmin ? `⭐ ${f.name}` : f.name}</h3>
-                <button onClick={(e) => deleteFolder(e, f._id)} className="text-btn-delete">Supprimer le dossier</button>
+                
+                <h3 style={{margin: '10px 0'}}>
+                  {/* CORRECTION 2 : On remplace 'isAdmin' par 'isGlobal' */}
+                  {f.isGlobal ? `⭐ ${f.name}` : f.name}
+                </h3>
+                
+                <button 
+                  className="delete-btn-icon" 
+                  onClick={(e) => { e.stopPropagation(); deleteFolder(e, f._id); }}
+                  title="Delete folder"
+                >
+                  🗑️
+                </button>
               </div>
             ))}
-            
             <div className="folder-item card-form add-folder">
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 await fetch('/api/folders', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name: newFolderName, userId}) });
                 setNewFolderName(""); fetchData();
               }}>
-                <input value={newFolderName} onChange={e=>setNewFolderName(e.target.value)} placeholder="Nom du dossier..." />
-                <button type="submit" className="btn-master btn-success" style={{width:'100%'}}>Créer</button>
+                <input value={newFolderName} onChange={e=>setNewFolderName(e.target.value)} placeholder="Folder name..." />
+                <button type="submit" className="btn-master btn-success" style={{width:'100%'}}>Create</button>
               </form>
             </div>
           </div>
@@ -122,7 +161,7 @@ function App() {
         /* --- VUE DASHBOARD --- */
         <div className="dashboard-layout">
           <aside className="sidebar">
-            <button onClick={() => setSelectedFolder(null)} className="btn-master btn-dark" style={{width:'100%', marginBottom:'10px'}}>← Menu Principal</button>
+            <button onClick={() => setSelectedFolder(null)} className="btn-master btn-dark" style={{width:'100%', marginBottom:'10px'}}>← Main Menu</button>
             <button onClick={() => setReviewMode(!reviewMode)} className={`btn-master ${reviewMode ? 'btn-warning' : 'btn-gradient'}`} style={{ marginBottom: '25px', width: '100%' }}>
               {reviewMode ? "🎯 Exit Review" : "🚀 Start Review Mode"}
             </button>
@@ -160,8 +199,8 @@ function App() {
                         <>
                           <p className="card-text">{card.question}</p>
                           <div className="card-actions-text">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="text-btn edit">Modifier</button>
-                            <button onClick={(e) => deleteCard(e, card._id)} className="text-btn delete">Supprimer</button>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="text-btn edit">edit</button>
+                            <button onClick={(e) => deleteCard(e, card._id)} className="text-btn delete">Delete</button>
                           </div>
                         </>
                       )}
@@ -169,8 +208,8 @@ function App() {
                     <div className="flashcard-back">
                       <p className="card-text">{card.answer}</p>
                       <div className="review-actions" style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                        <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger">Faux</button>
-                        <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success">Juste</button>
+                        <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger">False</button>
+                        <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success">True</button>
                       </div>
                     </div>
                   </div>

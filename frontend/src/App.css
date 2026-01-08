@@ -280,3 +280,35 @@ input:focus {
     position: static;
   }
 }
+
+.folder-item.global {
+  border: 2px solid #FFD700; 
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); 
+}
+
+.folder-title .star-icon {
+  margin-right: 8px; 
+}
+
+/* Il faut d'abord dire à la carte d'être le repère */
+.folder-item {
+  position: relative; /* Important ! */
+  /* ... le reste de ton style actuel ... */
+}
+
+.delete-btn-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.5; /* Discret par défaut */
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.delete-btn-icon:hover {
+  opacity: 1;
+  transform: scale(1.2); /* Grossit un peu au survol */
+}
