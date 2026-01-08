@@ -3,289 +3,191 @@ import Auth from './Auth';
 import './App.css';
 
 function App() {
-  // --- STATES ---
-  const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(null);
-  const [targetFolderId, setTargetFolderId] = useState("");
-  const [newFolderName, setNewFolderName] = useState("");
   const [userId, setUserId] = useState(localStorage.getItem("userId"));
-
+  const [folders, setFolders] = useState([]);
   const [cards, setCards] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  
+  // États pour la création
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [targetFolderId, setTargetFolderId] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
+  
+  // États pour l'interface
   const [flippedCardId, setFlippedCardId] = useState(null);
-
+  const [reviewMode, setReviewMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editQuestion, setEditQuestion] = useState("");
   const [editAnswer, setEditAnswer] = useState("");
 
-  // NOUVEAU : État pour le filtrage par date
-  const [reviewMode, setReviewMode] = useState(false);
-
-  // --- AUTH ---
-  const handleLogin = (id) => {
-    setUserId(id);
-    localStorage.setItem("userId", id);
+  const fetchData = async () => {
+    if (!userId) return;
+    try {
+      const [resC, resF] = await Promise.all([
+        fetch(`/api/cards?userId=${userId}`),
+        fetch(`/api/folders?userId=${userId}`)
+      ]);
+      setCards(await resC.json());
+      setFolders(await resF.json());
+    } catch (e) { console.error("Erreur de chargement:", e); }
   };
+
+  useEffect(() => { if (userId) fetchData(); }, [userId]);
 
   const handleLogout = () => {
     setUserId(null);
     localStorage.removeItem("userId");
+    window.location.reload();
   };
 
-  // --- API FETCH ---
-  const fetchCards = async () => {
-    if (!userId) return;
-    try {
-      const response = await fetch(`/api/cards?userId=${userId}`);
-      const data = await response.json();
-      setCards(data);
-    } catch (error) { console.error("Error fetching cards:", error); }
+  // --- ACTIONS SUR LES CARTES ---
+
+  const handleAnswer = async (e, id, isValid) => {
+    e.stopPropagation();
+    const res = await fetch(`/api/cards/${id}/answer`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, isValid })
+    });
+    if (!res.ok) return alert("Trop tôt pour réviser cette carte !");
+    setFlippedCardId(null);
+    fetchData();
   };
 
-  const fetchFolders = async () => {
-    if (!userId) return;
-    try {
-      const response = await fetch(`/api/folders?userId=${userId}`);
-      const data = await response.json();
-      setFolders(data);
-    } catch (error) { console.error("Error fetching folders:", error); }
+  const saveEdit = async (e, id) => {
+    e.stopPropagation();
+    await fetch(`/api/cards/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: editQuestion, answer: editAnswer, userId })
+    });
+    setEditingId(null); 
+    fetchData();
   };
 
-  useEffect(() => {
-    if (userId) {
-      fetchCards();
-      fetchFolders();
-    }
-  }, [userId]);
+  const deleteCard = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this card?")) return;
+    await fetch(`/api/cards/${id}?userId=${userId}`, { method: 'DELETE' });
+    fetchData();
+  };
 
-  // --- ACTIONS ---
+  // --- ACTIONS SUR LES DOSSIERS ---
 
   const createFolder = async (e) => {
     e.preventDefault();
     if (!newFolderName) return;
-    try {
-      await fetch('/api/folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newFolderName, userId })
-      });
-      setNewFolderName("");
-      fetchFolders();
-    } catch (error) { console.error("Error creating folder:", error); }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const folderToUse = targetFolderId || selectedFolder;
-
-    const newCard = {
-      question,
-      answer,
-      userId,
-      folderId: folderToUse || null
-    };
-
-    await fetch('/api/cards', {
+    await fetch('/api/folders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newCard)
+      body: JSON.stringify({ name: newFolderName, userId })
     });
-    setQuestion("");
-    setAnswer("");
-    fetchCards();
+    setNewFolderName("");
+    fetchData();
   };
 
-  // NOUVEAU : Gérer la réponse (Correct/Faux)
-  const handleAnswer = async (e, id, isValid) => {
-    e.stopPropagation();
-    try {
-      const response = await fetch(`/api/cards/${id}/answer`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isValid })
-      });
-      const data = await response.json();
-      
-      if (!response.ok) {
-        alert(data.error);
-        return;
-      }
+  // --- FILTRAGE ---
 
-      setFlippedCardId(null);
-      fetchCards();
-    } catch (error) { console.error("Error answering card:", error); }
-  };
-
-  const handleDelete = async (e, id) => {
-    e.stopPropagation();
-    if (window.confirm("Delete this card?")) {
-      await fetch(`/api/cards/${id}`, { method: 'DELETE' });
-      fetchCards();
-    }
-  };
-
-  // --- EDIT ---
-  const saveEdit = async (e, id) => {
-    e.stopPropagation();
-    await fetch(`/api/cards/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: editQuestion, answer: editAnswer, userId })
-    });
-    setEditingId(null);
-    fetchCards();
-  };
-
-  const startEditing = (e, card) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); setFlippedCardId(null); };
-  const cancelEdit = (e) => { e.stopPropagation(); setEditingId(null); };
-  const handleCardClick = (id) => { if (editingId === id) return; setFlippedCardId(flippedCardId === id ? null : id); };
-
-  // --- LOGIQUE DE FILTRAGE (Dossiers + Date) ---
-  const filteredCards = cards.filter(card => {
-    const matchesFolder = selectedFolder ? card.folderId === selectedFolder : true;
-    const isDue = new Date(card.nextReviewAt) <= new Date();
-    // Si reviewMode est actif, on ne garde que les cartes dues
-    return matchesFolder && (reviewMode ? isDue : true);
+  const filteredCards = cards.filter(c => {
+    const inFolder = selectedFolder ? c.folderId === selectedFolder : true;
+    const isDue = new Date(c.nextReviewAt) <= new Date();
+    return inFolder && (reviewMode ? isDue : true);
   });
 
-  // --- RENDER ---
-  if (!userId) return <div className="app-container"><Auth onLogin={handleLogin} /></div>;
+  if (!userId) return <Auth onLogin={(id) => { setUserId(id); localStorage.setItem("userId", id); }} />;
 
   return (
     <div className="app-container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>🧠 FlashMaster</h1>
-        <button onClick={handleLogout} className="btn-delete" style={{ marginTop: 0, background: '#ef4444' }}>Logout</button>
+      <header>
+        <h1>FlashMaster</h1>
+        <button onClick={handleLogout} className="btn-master btn-danger" style={{position:'absolute', top:20, right:40}}>Logout</button>
       </header>
 
       <div className="dashboard-layout">
         <aside className="sidebar">
-          {/* NOUVEAU : Bouton Review Mode */}
-          <button 
-            onClick={() => setReviewMode(!reviewMode)} 
-            className="btn-add" 
-            style={{ marginBottom: '25px', background: reviewMode ? '#f1c40f' : '#6366f1', color: reviewMode ? 'black' : 'white' }}
-          >
-            {reviewMode ? "🎯 Finish Review" : "🚀 Start Review Mode"}
+          <button onClick={() => setReviewMode(!reviewMode)} className={`btn-master ${reviewMode ? 'btn-warning' : 'btn-gradient'}`} style={{ marginBottom: '25px', width: '100%' }}>
+            {reviewMode ? "🎯 Exit Review" : "🚀 Start Review Mode"}
           </button>
 
-          <div className="card-form">
-            <h2>New Card</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Folder</label>
-                <select
-                  value={targetFolderId}
-                  onChange={(e) => setTargetFolderId(e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '5px', background: '#333', color: 'white', border: '1px solid #555' }}
-                >
-                  <option value="">📂 No Folder (Root)</option>
-                  {folders.map(folder => (
-                    <option key={folder._id} value={folder._id}>📁 {folder.name}</option>
-                  ))}
-                </select>
-              </div>
+          {/* Formulaire Dossier */}
+          <div className="card-form" style={{marginBottom: '20px'}}>
+            <h3>New Folder</h3>
+            <form onSubmit={createFolder} style={{display:'flex', gap:'5px'}}>
+              <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Folder name..." />
+              <button type="submit" className="btn-master btn-success">+</button>
+            </form>
+          </div>
 
-              <div className="form-group">
-                <label>Question</label>
-                <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ex: Capital of France?" required />
-              </div>
-              <div className="form-group">
-                <label>Answer</label>
-                <input type="text" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Ex: Paris" required />
-              </div>
-              <button type="submit" className="btn-add">Add Card</button>
+          {/* Formulaire Carte */}
+          <div className="card-form">
+            <h3>New Card</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              await fetch('/api/cards', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question, answer, userId, folderId: targetFolderId || selectedFolder}) });
+              setQuestion(""); setAnswer(""); fetchData();
+            }}>
+              <select value={targetFolderId} onChange={e => setTargetFolderId(e.target.value)}>
+                <option value="">📂 Root</option>
+                {folders.map(f => <option key={f._id} value={f._id}>📁 {f.name}</option>)}
+              </select>
+              <input value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Question" required />
+              <input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Answer" required />
+              <button type="submit" className="btn-master btn-gradient" style={{width: '100%'}}>Add Card</button>
             </form>
           </div>
         </aside>
 
         <main className="main-content">
-          <div className="folders-bar" style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => { setSelectedFolder(null); setTargetFolderId(""); }}
-              style={{ background: selectedFolder === null ? "#00cec9" : "#333", border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', color: 'white' }}
-            >
-              📂 All Cards
-            </button>
-
-            {folders.map(folder => (
-              <button
-                key={folder._id}
-                onClick={() => { setSelectedFolder(folder._id); setTargetFolderId(folder._id); }}
-                title={folder.isGlobal ? "Official Admin Folder" : "My Personal Folder"}
-                style={{
-                  background: selectedFolder === folder._id ? "#00cec9" : "#333",
-                  border: folder.isGlobal ? '1px solid #ffd700' : 'none',
-                  padding: '8px 15px',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                {folder.isGlobal ? "⭐" : "📁"} {folder.name}
-              </button>
+          <div className="folders-bar">
+            <button onClick={() => setSelectedFolder(null)} className={`btn-folder ${!selectedFolder ? 'active' : ''}`}>All</button>
+            {folders.map(f => (
+              <button key={f._id} onClick={() => setSelectedFolder(f._id)} className={`btn-folder ${selectedFolder === f._id ? 'active' : ''}`}>{f.name}</button>
             ))}
-
-            <form onSubmit={createFolder} style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>
-              <input type="text" placeholder="New folder..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", background: "#222", color: "white" }} />
-              <button type="submit" style={{ cursor: 'pointer', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '5px', padding: '0 10px' }}>➕</button>
-            </form>
           </div>
 
           <div className="card-grid">
-            {filteredCards.length === 0 && <p style={{ color: '#666', gridColumn: '1 / -1', textAlign: 'center' }}>No cards here.</p>}
-
-            {filteredCards.map((card) => {
+            {filteredCards.map(card => {
               const isEarly = new Date(card.nextReviewAt) > new Date();
 
-              return (
-                <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => handleCardClick(card._id)}>
-                  {editingId === card._id ? (
-                    <div className="card-edit-form">
-                      <input value={editQuestion} onChange={(e) => setEditQuestion(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                      <input value={editAnswer} onChange={(e) => setEditAnswer(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                      <div className="edit-actions">
-                        <button onClick={(e) => saveEdit(e, card._id)} className="btn-save">Save</button>
-                        <button onClick={cancelEdit} className="btn-cancel">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flashcard-inner">
-                      <div className="flashcard-front">
-                        {/* NOUVEAU : Badge de niveau */}
-                        <span className="badge question">LVL {card.category || 1}</span>
-                        <p className="card-text">{card.question}</p>
-                        <p style={{ fontSize: '0.7rem', color: '#888', marginTop: '10px' }}>
-                          Last reviewed: {card.lastReviewedAt ? new Date(card.lastReviewedAt).toLocaleDateString('en-US') : "Never"}
-                        </p>
-                        <div className="actions-bar"><button onClick={(e) => startEditing(e, card)} className="btn-icon">Modify</button></div>
-                      </div>
-                      <div className="flashcard-back">
-                        <span className="badge answer">Answer</span>
-                        <p className="card-text">{card.answer}</p>
-                        
-                        {/* NOUVEAU : Actions de révision */}
-                        <div style={{ marginTop: 'auto', marginBottom: '10px' }}>
-                          {isEarly ? (
-                            <p style={{ fontSize: '0.7rem', color: '#f1c40f' }}>
-                              ⏳ Next review: {new Date(card.nextReviewAt).toLocaleDateString()}
-                            </p>
-                          ) : (
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button onClick={(e) => handleAnswer(e, card._id, false)} style={{ background: '#ff7675', border: 'none', borderRadius: '5px', padding: '5px 12px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}>❌ Wrong</button>
-                              <button onClick={(e) => handleAnswer(e, card._id, true)} style={{ background: '#55efc4', border: 'none', borderRadius: '5px', padding: '5px 12px', cursor: 'pointer', color: 'black', fontWeight: 'bold' }}>✅ Correct</button>
-                            </div>
-                          )}
+              if (editingId === card._id) {
+                return (
+                  <div key={card._id} className="flashcard">
+                    <div className="flashcard-front" style={{border: '2px solid var(--primary)', padding:'15px'}}>
+                        <input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} />
+                        <input value={editAnswer} onChange={e => setEditAnswer(e.target.value)} />
+                        <div style={{display:'flex', gap:'5px', width:'100%'}}>
+                          <button onClick={(e) => saveEdit(e, card._id)} className="btn-master btn-success" style={{flex:1}}>Save</button>
+                          <button onClick={() => setEditingId(null)} className="btn-master btn-danger" style={{flex:1}}>X</button>
                         </div>
+                    </div>
+                  </div>
+                );
+              }
 
-                        <button onClick={(e) => handleDelete(e, card._id)} className="btn-delete" style={{ fontSize: '0.7rem' }}>Delete Card</button>
+              return (
+                <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => setFlippedCardId(flippedCardId === card._id ? null : card._id)}>
+                  <div className="flashcard-inner">
+                    <div className="flashcard-front">
+                      <span className="badge">LVL {card.category || 1}</span>
+                      <p>{card.question}</p>
+                      <div className="card-footer-actions">
+                        <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="btn-icon">✏️</button>
+                        <button onClick={(e) => deleteCard(e, card._id)} className="btn-icon">🗑️</button>
                       </div>
                     </div>
-                  )}
+                    <div className="flashcard-back">
+                      <p>{card.answer}</p>
+                      <div className="review-actions">
+                        {isEarly ? <p>⏳ Due {new Date(card.nextReviewAt).toLocaleDateString()}</p> : (
+                          <>
+                            <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger">❌</button>
+                            <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success">✅</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })}

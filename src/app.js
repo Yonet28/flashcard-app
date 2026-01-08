@@ -13,12 +13,13 @@ const swaggerDocument = yaml.load("./swagger.yaml");
 
 app.use(cors());
 app.use(express.json());
+app.use('/auth', userRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-app.use("/api/cards", cardRoutes);
-app.use("/api/users", userRoutes);
+app.use("/cards", cardRoutes);
+app.use("/users", userRoutes);
 
-app.use("/api/folders", folderRoutes);
+app.use("/folders", folderRoutes);
 
 export default app;
