@@ -108,6 +108,8 @@ function App() {
     return inFolder && (reviewMode ? isDue : true);
   });
 
+  const currentFolder = folders.find(f => f._id === selectedFolder);
+
   if (!userId) return <Auth onLogin={(id) => { setUserId(id); localStorage.setItem("userId", id); }} />;
 
   return (
@@ -116,6 +118,15 @@ function App() {
         <h1 onClick={() => setSelectedFolder(null)} style={{cursor:'pointer'}}>FlashMaster</h1>
         <button onClick={handleLogout} className="btn-master btn-danger" style={{position:'absolute', top:20, right:40}}>Logout</button>
       </header>
+
+      {selectedFolder && currentFolder && (
+        <div className="folder-banner">
+            <h1>📂 {currentFolder.name}</h1>
+            <span className="folder-badge">
+            </span>
+            </div>
+      )}
+
 
       {!selectedFolder && !reviewMode ? (
         /* --- MENU PRINCIPAL --- */
@@ -185,36 +196,74 @@ function App() {
           <main className="main-content">
             <div className="card-grid">
               {filteredCards.map(card => (
-                <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => setFlippedCardId(flippedCardId === card._id ? null : card._id)}>
-                  <div className="flashcard-inner">
-                    <div className="flashcard-front">
-                      <span className="badge">LVL {card.category || 1}</span>
-                      {editingId === card._id ? (
-                        <div onClick={e => e.stopPropagation()} style={{width:'100%'}}>
-                          <input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} />
-                          <input value={editAnswer} onChange={e => setEditAnswer(e.target.value)} />
-                          <button onClick={(e) => saveEdit(e, card._id)} className="btn-master btn-success" style={{width:'100%'}}>Save</button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="card-text">{card.question}</p>
-                          <div className="card-actions-text">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="text-btn edit">edit</button>
-                            <button onClick={(e) => deleteCard(e, card._id)} className="text-btn delete">Delete</button>
+                  <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => setFlippedCardId(flippedCardId === card._id ? null : card._id)}>
+                    <div className="flashcard-inner">
+                      
+                      <div className="flashcard-front" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+                        
+                        <span className="badge">LVL {card.category || 1}</span>
+                        
+                        {editingId === card._id ? (
+                          <div onClick={e => e.stopPropagation()} style={{width:'100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                            <input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} style={{marginBottom: '10px'}} />
+                            <input value={editAnswer} onChange={e => setEditAnswer(e.target.value)} style={{marginBottom: '10px'}} />
+                            <button onClick={(e) => saveEdit(e, card._id)} className="btn-master btn-success" style={{width:'100%'}}>Save</button>
                           </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="flashcard-back">
-                      <p className="card-text">{card.answer}</p>
-                      <div className="review-actions" style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                        <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger">False</button>
-                        <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success">True</button>
+                        ) : (
+                          <>
+                            <p className="card-text" style={{
+                                flex: 1, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                margin: 0, 
+                                textAlign: 'center'
+                            }}>
+                                {card.question}
+                            </p>
+                            
+                            <div className="card-actions-text">
+                              <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="text-btn edit">edit</button>
+                              <button onClick={(e) => deleteCard(e, card._id)} className="text-btn delete">Delete</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flashcard-back" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+                        <p className="card-text" style={{
+                            flex: 1, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            margin: 0,
+                            textAlign: 'center'
+                        }}>
+                            {card.answer}
+                        </p>
+
+                        <p style={{
+                            textAlign: 'center', 
+                            fontSize: '0.85rem', 
+                            color: '#aaa', 
+                            marginBottom: '5px',
+                            marginTop: '0'
+                        }}>
+                             Scheduled for : {new Date(card.nextReviewAt).toLocaleDateString()}
+                        </p>
+
+                        <div className="review-actions" style={{display:'flex', gap:'10px', marginTop:'5px'}}>
+                          <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger" style={{flex: 1}}>
+                              False
+                          </button>
+                          <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success" style={{flex: 1}}>
+                              True
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </main>
         </div>

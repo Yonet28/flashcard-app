@@ -61,6 +61,8 @@ paths:
                 properties:
                   userId:
                     type: string
+                  token:         
+                    type: string
         401:
           description: Invalid credentials
 
@@ -100,6 +102,35 @@ paths:
         201:
           description: Folder created
 
+  /folders/{id}:
+    delete:
+      summary: Delete a folder and its content
+      tags: [Folders]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The folder ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+      responses:
+        200:
+          description: Folder and content deleted
+        403:
+          description: Forbidden (Not owner or admin)
+        404:
+          description: Folder not found
   # --- CARDS ROUTES ---
   /cards:
     get:
@@ -166,9 +197,17 @@ paths:
                   type: string
                 userId:
                    type: string
+                category:
+                   type: integer
+                   description: Current Leitner level (1-7)
+                nextReviewAt:
+                   type: string
+                   format: date-time
+                   description: Next review date
       responses:
         200:
           description: Card updated
+
 
     delete:
       summary: Delete a card
@@ -179,6 +218,19 @@ paths:
           schema:
             type: string
           required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
       responses:
         200:
           description: Card deleted
+        403:
+          description: Forbidden (Not owner or admin)
