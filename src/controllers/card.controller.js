@@ -1,6 +1,7 @@
 import Card from "../models/card.model.js";
 import User from "../models/user.model.js"; 
 import Folder from "../models/folder.model.js"; 
+import CardProgress from "../models/cardProgress.model.js";
 import xss from "xss";
 
 export async function listCards(req, res) {
@@ -16,9 +17,24 @@ export async function listCards(req, res) {
             { userId: userId },
             { folderId: { $in: globalFolderIds } }
         ]
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
 
-    res.status(200).json(cards);
+    const progresses = await CardProgress.find({ userId: userId }).lean();
+
+    const personalizedCards = cards.map(card => {
+        const userProgress = progresses.find(p => p.cardId.toString() === card._id.toString());
+
+        return {
+            ...card, 
+            
+            category: userProgress ? userProgress.box : 1, 
+            
+            nextReviewAt: userProgress ? userProgress.nextReviewAt : new Date()
+        };
+    });
+
+    res.status(200).json(personalizedCards);
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -139,4 +155,36 @@ export async function answerCard(req, res) {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+}
+
+export async function submitReview(req, res) {
+  try {
+    const { id } = req.params; 
+    const { userId, isValid } = req.body; 
+
+    let progress = await CardProgress.findOne({ userId: userId, cardId: id });
+
+    if (!progress) {
+      progress = new CardProgress({ userId: userId, cardId: id, box: 1 });
+    }
+
+    if (isValid) {
+      progress.box = Math.min(progress.box + 1, 7);
+      
+      const daysToAdd = Math.pow(2, progress.box - 1); 
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + daysToAdd);
+      progress.nextReviewAt = nextDate;
+    } else {
+      progress.box = 1;
+      progress.nextReviewAt = new Date(); 
+    }
+
+    await progress.save();
+
+    res.status(200).json({ message: "Progress updated", level: progress.box });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 }

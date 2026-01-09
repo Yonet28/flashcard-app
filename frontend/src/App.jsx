@@ -62,15 +62,21 @@ function App() {
   // --- ACTIONS CARTES ---
   const handleAnswer = async (e, id, isValid) => {
     e.stopPropagation();
-    const res = await fetch(`/api/cards/${id}/answer`, {
-      method: 'PATCH',
+
+    const res = await fetch(`/api/cards/${id}/review`, {
+      method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, isValid })
     });
-    if (!res.ok) return alert("Too early to revise!");
+
+    if (!res.ok) {
+        const err = await res.json();
+        return alert(err.error || "Error updating progress");
+    }
+
     setFlippedCardId(null);
-    fetchData();
-  };
+    fetchData(); 
+};
 
   const saveEdit = async (e, id) => {
     e.stopPropagation();
