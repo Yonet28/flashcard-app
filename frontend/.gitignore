@@ -1,4 +1,5 @@
-# Logs
+# --- LOG FILES ---
+# Prevents committing temporary log files generated during app execution
 logs
 *.log
 npm-debug.log*
@@ -7,18 +8,35 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# --- DEPENDENCIES & BUILD OUTPUTS ---
+# node_modules: Contains external libraries; should never be committed
 node_modules
+
+# dist/dist-ssr: Contains the compiled production code
 dist
 dist-ssr
+
+# --- LOCAL CONFIGURATIONS ---
+# Ignores local environment variables (secrets/API keys)
 *.local
 
-# Editor directories and files
+# --- EDITOR & IDE DIRECTORIES ---
+# .vscode: Ignores personal workspace settings for VS Code
 .vscode/*
+# Exception: Allows committing the extensions list for the team
 !.vscode/extensions.json
+
+# .idea: Ignores configuration files for JetBrains IDEs
 .idea
+
+# .DS_Store: Ignores system-generated files from macOS
 .DS_Store
+
+# --- PROJECT & SOLUTION FILES ---
+# Ignores Visual Studio solution and backup files
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+# Ignores temporary swap files from editors like Vim
 *.sw?

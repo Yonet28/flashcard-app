@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 
+// This component handles user login and registration
 function Auth({ onLogin }) {
+  // State to toggle between Login (true) and Register (false)
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  // Function to handle the form submission
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+    e.preventDefault(); // Prevents page refresh
+    setError(''); // Resets error message
+    // Selection of the API endpoint based on the mode
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     try {
       const response = await fetch(endpoint, {
@@ -17,9 +21,15 @@ function Auth({ onLogin }) {
         body: JSON.stringify({ username, password }),
       });
       const data = await response.json();
-      if (response.ok) { onLogin(data.userId); } 
-      else { setError(data.error || 'Erreur d\'identification'); }
-    } catch (err) { setError('Erreur serveur'); }
+      if (response.ok) { 
+        onLogin(data.userId); // Successful login, pass userId to parent
+      } 
+      else { 
+        setError(data.error || 'Erreur d\'identification'); // Error from server
+      }
+    } catch (err) { 
+      setError('Erreur serveur'); // Connection or server error
+    }
   };
 
   return (
@@ -36,6 +46,7 @@ function Auth({ onLogin }) {
             {isLogin ? 'Login' : 'Register'}
           </button>
         </form>
+        {/* Button to toggle between login and registration modes */}
         <button onClick={() => setIsLogin(!isLogin)} style={{background:'none', border:'none', color:'var(--primary)', cursor:'pointer', width:'100%', marginTop:'20px'}}>
           {isLogin ? "Need an account? Register" : "Have an account? Login"}
         </button>

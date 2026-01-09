@@ -2,24 +2,50 @@ import { useState, useEffect } from 'react';
 import Auth from './Auth';
 import './App.css';
 
+/**
+ * MAIN APPLICATION COMPONENT
+ * This is the core of the FlashMaster app. It handles:
+ * 1. User Authentication state.
+ * 2. Data synchronization with the backend (Folders & Cards).
+ * 3. The Spaced Repetition (Leitner) logic.
+ * 4. UI state for navigation and card interaction.
+ */
 function App() {
+  // --- STATE MANAGEMENT: USER AUTH ---
+  // Retrieves the logged-in user's ID from local storage to maintain the session
   const [userId, setUserId] = useState(localStorage.getItem("userId"));
+
+  // --- STATE MANAGEMENT: CONTENT DATA ---
+  // Stores the list of folders owned by the user
   const [folders, setFolders] = useState([]);
+  // Stores all flashcards associated with the user's account
   const [cards, setCards] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(null); // null = Menu Principal
+  // Tracks which folder is currently selected (null means we are in the Main Menu)
+  const [selectedFolder, setSelectedFolder] = useState(null); 
   
+  // --- STATE MANAGEMENT: INPUT FORMS ---
+  // Temporary storage for text entered in the "New Card" or "New Folder" forms
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   
+  // --- STATE MANAGEMENT: UI INTERACTION ---
+  // Keeps track of the ID of the card that is currently flipped to its back side
   const [flippedCardId, setFlippedCardId] = useState(null);
+  // Toggle switch: if true, only show cards that are due for review today
   const [reviewMode, setReviewMode] = useState(false);
+  // Stores the ID of the card being edited to show input fields instead of plain text
   const [editingId, setEditingId] = useState(null);
   const [editQuestion, setEditQuestion] = useState("");
   const [editAnswer, setEditAnswer] = useState("");
 
+  // --- DATA FETCHING LOGIC ---
+  /**
+   * Syncs the frontend state with the MongoDB database via the backend API.
+   * Uses Promise.all to fetch both cards and folders simultaneously for better performance.
+   */
   const fetchData = async () => {
-    if (!userId) return;
+    if (!userId) return; // Do not attempt to fetch data if the user isn't logged in
     try {
       const [resC, resF] = await Promise.all([
         fetch(`/api/cards?userId=${userId}`),
@@ -27,21 +53,39 @@ function App() {
       ]);
       setCards(await resC.json());
       setFolders(await resF.json());
-    } catch (e) { console.error("Loading error:", e); }
+    } catch (e) { 
+      console.error("API Error: Unable to sync with database.", e); 
+    }
   };
 
-  useEffect(() => { if (userId) fetchData(); }, [userId]);
+  /**
+   * USEEFFECT HOOK:
+   * This runs automatically every time the 'userId' changes.
+   * If a user logs in, it immediately triggers the data fetch.
+   */
+  useEffect(() => { 
+    if (userId) fetchData(); 
+  }, [userId]);
 
+  // --- AUTHENTICATION HANDLER ---
+  /**
+   * Wipes the session data from memory and local storage.
+   * Reloading the window ensures all sensitive data is cleared and the Auth screen is shown.
+   */
   const handleLogout = () => {
     setUserId(null);
     localStorage.removeItem("userId");
-    window.location.reload();
+    window.location.reload(); 
   };
 
-  // --- ACTIONS DOSSIERS ---
+  // --- FOLDER OPERATIONS ---
+  /**
+   * Deletes a folder from the database.
+   * stopPropagation is used to prevent the app from "entering" the folder while clicking the delete icon.
+   */
   const deleteFolder = async (e, folderId) => {
-    e.stopPropagation();
-    if (!window.confirm("Delete this folder ?")) return;
+    e.stopPropagation(); 
+    if (!window.confirm("Are you sure? This will delete all cards inside this folder.")) return;
 
     const response = await fetch(`/api/folders/${folderId}`, { 
         method: 'DELETE', 
@@ -55,15 +99,28 @@ function App() {
         return; 
     }
 
+    // If the currently viewed folder was the one deleted, return to the Main Menu
     if (selectedFolder === folderId) setSelectedFolder(null);
-    fetchData();
-};
+    fetchData(); // Refresh list
+  };
 
-  // --- ACTIONS CARTES ---
-  const handleAnswer = async (e, id, isValid) => {
-    e.stopPropagation();
+  // --- CARD REVISION SYSTEM (LEITNER ALGORITHM) ---
+  /**
+   * Handles the "True/False" logic during a study session.
+   * CRITICAL SECURITY: Checks if the card is ready for review based on its scheduled date.
+   */
+  const handleAnswer = async (e, card, isValid) => {
+    e.stopPropagation(); // Prevents the card from flipping back over instantly
 
-    const res = await fetch(`/api/cards/${id}/review`, {
+    // Calculate if the card is "due" (current time >= review time)
+    const isDue = new Date(card.nextReviewAt) <= new Date();
+    if (!isDue) {
+        alert("Patience! This card is scheduled for a later review.");
+        return;
+    }
+
+    // Sends the review result (correct/incorrect) to the backend to calculate the next date
+    const res = await fetch(`/api/cards/${card._id}/review`, {
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, isValid })
@@ -71,13 +128,17 @@ function App() {
 
     if (!res.ok) {
         const err = await res.json();
-        return alert(err.error || "Error updating progress");
+        return alert(err.error || "Failed to update review status.");
     }
 
-    setFlippedCardId(null);
-    fetchData(); 
-};
+    setFlippedCardId(null); // Return card to front state
+    fetchData(); // Sync the updated 'nextReviewAt' and 'category' from server
+  };
 
+  // --- CARD CRUD (CREATE, UPDATE, DELETE) ---
+  /**
+   * Submits an update to an existing card.
+   */
   const saveEdit = async (e, id) => {
     e.stopPropagation();
     await fetch(`/api/cards/${id}`, {
@@ -85,13 +146,16 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: editQuestion, answer: editAnswer, userId })
     });
-    setEditingId(null); 
+    setEditingId(null); // Exit edit mode
     fetchData();
   };
 
+  /**
+   * Removes a specific card from a folder.
+   */
   const deleteCard = async (e, id) => {
     e.stopPropagation();
-    if (!window.confirm("Delete this card ?")) return;
+    if (!window.confirm("Permanently delete this card?")) return;
 
     const response = await fetch(`/api/cards/${id}`, { 
         method: 'DELETE',
@@ -104,64 +168,70 @@ function App() {
         alert(errorData.error); 
         return; 
     }
-
     fetchData();
-};
+  };
 
+  // --- DYNAMIC FILTERING LOGIC ---
+  /**
+   * Filters the master 'cards' array based on two criteria:
+   * 1. Is it in the currently selected folder?
+   * 2. If 'Review Mode' is ON, is the card currently due?
+   */
   const filteredCards = cards.filter(c => {
     const inFolder = selectedFolder ? c.folderId === selectedFolder : true;
     const isDue = new Date(c.nextReviewAt) <= new Date();
     return inFolder && (reviewMode ? isDue : true);
   });
 
+  // Helper to get information about the folder we are currently viewing
   const currentFolder = folders.find(f => f._id === selectedFolder);
 
+  // --- CONDITIONAL RENDERING ---
+  // If no user is authenticated, we block the app and show the Auth (Login/Register) screen
   if (!userId) return <Auth onLogin={(id) => { setUserId(id); localStorage.setItem("userId", id); }} />;
 
   return (
     <div className="app-container">
-      <header>
+      {/* GLOBAL HEADER: Visible on all pages */}
+      <header className="main-header">
         <h1 onClick={() => setSelectedFolder(null)} style={{cursor:'pointer'}}>FlashMaster</h1>
         <button onClick={handleLogout} className="btn-master btn-danger" style={{position:'absolute', top:20, right:40}}>Logout</button>
       </header>
 
+      {/* DYNAMIC BANNER: Only shows when inside a specific folder */}
       {selectedFolder && currentFolder && (
-        <div className="folder-banner">
+        <div className="folder-banner" style={{marginBottom: '20px'}}>
             <h1>📂 {currentFolder.name}</h1>
-            <span className="folder-badge">
-            </span>
-            </div>
+        </div>
       )}
 
-
+      {/* CONDITIONAL VIEW: Toggle between Main Menu (Folders) and Dashboard (Cards) */}
       {!selectedFolder && !reviewMode ? (
-        /* --- MENU PRINCIPAL --- */
+        /* --- VIEW A: THE FOLDER SELECTION SCREEN --- */
         <div className="main-menu-container">
-          <h2 style={{textAlign: 'center', marginBottom: '40px', fontSize: '2rem'}}>My Folders</h2>
+          <h2 style={{textAlign: 'center', marginBottom: '40px', fontSize: '2rem'}}>My Library</h2>
           <div className="folder-grid">
+            {/* Map through existing folders */}
             {folders.map(f => (
               <div 
                 key={f._id} 
-                // CORRECTION 1 : On utilise les backticks `` et on vérifie 'isGlobal'
                 className={`folder-item card-form ${f.isGlobal ? 'global' : ''}`} 
                 onClick={() => setSelectedFolder(f._id)}
               >
                 <div style={{fontSize: '3rem', marginBottom: '10px'}}>📁</div>
-                
                 <h3 style={{margin: '10px 0'}}>
-                  {/* CORRECTION 2 : On remplace 'isAdmin' par 'isGlobal' */}
                   {f.isGlobal ? `⭐ ${f.name}` : f.name}
                 </h3>
-                
                 <button 
                   className="delete-btn-icon" 
                   onClick={(e) => { e.stopPropagation(); deleteFolder(e, f._id); }}
-                  title="Delete folder"
                 >
                   🗑️
                 </button>
               </div>
             ))}
+            
+            {/* THE "ADD NEW FOLDER" INTERFACE */}
             <div className="folder-item card-form add-folder">
               <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -175,14 +245,16 @@ function App() {
           </div>
         </div>
       ) : (
-        /* --- VUE DASHBOARD --- */
+        /* --- VIEW B: THE CARD DASHBOARD --- */
         <div className="dashboard-layout">
+          {/* SIDEBAR: Navigation and Controls */}
           <aside className="sidebar">
-            <button onClick={() => setSelectedFolder(null)} className="btn-master btn-dark" style={{width:'100%', marginBottom:'10px'}}>← Main Menu</button>
+            <button onClick={() => setSelectedFolder(null)} className="btn-master btn-dark" style={{width:'100%', marginBottom:'10px'}}>← Back to Library</button>
             <button onClick={() => setReviewMode(!reviewMode)} className={`btn-master ${reviewMode ? 'btn-warning' : 'btn-gradient'}`} style={{ marginBottom: '25px', width: '100%' }}>
-              {reviewMode ? "🎯 Exit Review" : "🚀 Start Review Mode"}
+              {reviewMode ? "🎯 Finish Session" : "🚀 Start Review Mode"}
             </button>
 
+            {/* QUICK-ADD CARD FORM: Hidden during active review sessions to maintain focus */}
             {!reviewMode && (
               <div className="card-form">
                 <h3 style={{marginTop:0}}>New Card</h3>
@@ -199,35 +271,34 @@ function App() {
             )}
           </aside>
 
+          {/* MAIN GRID: Displays the filtered list of flashcards */}
           <main className="main-content">
             <div className="card-grid">
-              {filteredCards.map(card => (
-                  <div key={card._id} className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} onClick={() => setFlippedCardId(flippedCardId === card._id ? null : card._id)}>
+              {filteredCards.map(card => {
+                // LEITNER CHECK: Determine if this specific card can be validated
+                const isDue = new Date(card.nextReviewAt) <= new Date();
+
+                return (
+                  <div 
+                    key={card._id} 
+                    className={`flashcard ${flippedCardId === card._id ? 'flipped' : ''}`} 
+                    onClick={() => setFlippedCardId(flippedCardId === card._id ? null : card._id)}
+                  >
                     <div className="flashcard-inner">
                       
-                      <div className="flashcard-front" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-                        
+                      {/* --- CARD FRONT (QUESTION SIDE) --- */}
+                      <div className="flashcard-front">
                         <span className="badge">LVL {card.category || 1}</span>
-                        
+                        {/* CONDITIONAL RENDER: Edit Form vs Display Text */}
                         {editingId === card._id ? (
                           <div onClick={e => e.stopPropagation()} style={{width:'100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
-                            <input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} style={{marginBottom: '10px'}} />
-                            <input value={editAnswer} onChange={e => setEditAnswer(e.target.value)} style={{marginBottom: '10px'}} />
-                            <button onClick={(e) => saveEdit(e, card._id)} className="btn-master btn-success" style={{width:'100%'}}>Save</button>
+                            <input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} />
+                            <input value={editAnswer} onChange={e => setEditAnswer(e.target.value)} />
+                            <button onClick={(e) => saveEdit(e, card._id)} className="btn-master btn-success">Update</button>
                           </div>
                         ) : (
                           <>
-                            <p className="card-text" style={{
-                                flex: 1, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                margin: 0, 
-                                textAlign: 'center'
-                            }}>
-                                {card.question}
-                            </p>
-                            
+                            <p className="card-text">{card.question}</p>
                             <div className="card-actions-text">
                               <button onClick={(e) => { e.stopPropagation(); setEditingId(card._id); setEditQuestion(card.question); setEditAnswer(card.answer); }} className="text-btn edit">edit</button>
                               <button onClick={(e) => deleteCard(e, card._id)} className="text-btn delete">Delete</button>
@@ -236,40 +307,40 @@ function App() {
                         )}
                       </div>
 
-                      <div className="flashcard-back" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-                        <p className="card-text" style={{
-                            flex: 1, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            margin: 0,
-                            textAlign: 'center'
-                        }}>
-                            {card.answer}
+                      {/* --- CARD BACK (ANSWER SIDE) --- */}
+                      <div className="flashcard-back">
+                        <p className="card-text">{card.answer}</p>
+
+                        {/* SCHEDULING MESSAGE: Shows when the next review is possible */}
+                        <p style={{ textAlign: 'center', fontSize: '0.85rem', color: isDue ? '#fff' : '#ff4444', marginBottom: '5px' }}>
+                            {isDue ? `✅ Study Session Ready` : `⏳ Next: ${new Date(card.nextReviewAt).toLocaleDateString()}`}
                         </p>
 
-                        <p style={{
-                            textAlign: 'center', 
-                            fontSize: '0.85rem', 
-                            color: '#aaa', 
-                            marginBottom: '5px',
-                            marginTop: '0'
-                        }}>
-                             Scheduled for : {new Date(card.nextReviewAt).toLocaleDateString()}
-                        </p>
-
-                        <div className="review-actions" style={{display:'flex', gap:'10px', marginTop:'5px'}}>
-                          <button onClick={e => handleAnswer(e, card._id, false)} className="btn-master btn-danger" style={{flex: 1}}>
-                              False
+                        {/* INTERACTIVE ACTION BUTTONS: Disabled if the card is not due */}
+                        <div className="review-actions" style={{display:'flex', gap:'10px'}}>
+                          <button 
+                            onClick={e => handleAnswer(e, card, false)} 
+                            className="btn-master btn-danger" 
+                            style={{flex: 1, opacity: isDue ? 1 : 0.4}}
+                            disabled={!isDue}
+                          >
+                            Incorrect
                           </button>
-                          <button onClick={e => handleAnswer(e, card._id, true)} className="btn-master btn-success" style={{flex: 1}}>
-                              True
+                          <button 
+                            onClick={e => handleAnswer(e, card, true)} 
+                            className="btn-master btn-success" 
+                            style={{flex: 1, opacity: isDue ? 1 : 0.4}}
+                            disabled={!isDue}
+                          >
+                            Correct
                           </button>
                         </div>
                       </div>
+
                     </div>
                   </div>
-                ))}
+                );
+              })}
             </div>
           </main>
         </div>

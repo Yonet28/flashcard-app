@@ -4,14 +4,17 @@ import Folder from "../models/folder.model.js";
 import CardProgress from "../models/cardProgress.model.js";
 import xss from "xss";
 
+// Retrieves the list of cards (personal and global) along with the associated progress
 export async function listCards(req, res) {
   try {
     const userId = req.query.userId;
     if (!userId) return res.status(400).json({ error: "Missing UserId" });
 
+    // Finds folders marked as global to include their cards
     const globalFolders = await Folder.find({ isGlobal: true }).select('_id');
     const globalFolderIds = globalFolders.map(f => f._id.toString());
 
+    // Fetches cards belonging to the user or located in a global folder
     const cards = await Card.find({
         $or: [
             { userId: userId },
@@ -19,16 +22,16 @@ export async function listCards(req, res) {
         ]
     }).sort({ createdAt: -1 }).lean();
 
+    // Fetches the user's learning progress for these cards
     const progresses = await CardProgress.find({ userId: userId }).lean();
 
+    // Merges general card information with specific user progress data
     const personalizedCards = cards.map(card => {
         const userProgress = progresses.find(p => p.cardId.toString() === card._id.toString());
 
         return {
             ...card, 
-            
             category: userProgress ? userProgress.box : 1, 
-            
             nextReviewAt: userProgress ? userProgress.nextReviewAt : new Date()
         };
     });
@@ -40,6 +43,7 @@ export async function listCards(req, res) {
   }
 }
 
+// Creates a new card with XSS sanitization
 export async function createCard(req, res) {
     try {
         let { question, answer, userId, folderId } = req.body;
@@ -57,6 +61,7 @@ export async function createCard(req, res) {
     }
 }
 
+// Updates a card with permission check (Owner or Admin)
 export async function updateCard(req, res) {
     try {
         const { id } = req.params;
@@ -89,6 +94,7 @@ export async function updateCard(req, res) {
       }
 }
 
+// Deletes a card after role verification
 export async function deleteCard(req, res) {
     try {
         const { id } = req.params;
@@ -114,8 +120,7 @@ export async function deleteCard(req, res) {
       }
 }
 
-
-
+// Processes a card answer and calculates the next review date
 export async function answerCard(req, res) {
     try {
         const { id } = req.params;
@@ -130,7 +135,7 @@ export async function answerCard(req, res) {
         const isEarly = now < new Date(card.nextReviewAt);
 
         if (isValid) {
-            // BLOQUAGE : On ne peut pas monter de niveau si on est en avance
+            // Increases the level if the review is not premature
             if (isEarly) {
                 return res.status(400).json({ 
                     error: "Trop tôt ! Vous ne pouvez pas augmenter le niveau avant la date prévue." 
@@ -138,11 +143,11 @@ export async function answerCard(req, res) {
             }
             card.category = Math.min(card.category + 1, 7);
         } else {
-            // On peut toujours réinitialiser si on a oublié, même en avance
+            // Resets to level 1 in case of an error
             card.category = 1;
         }
 
-        // Calcul du nouveau délai : 2^(cat-1) jours
+        // Calculates delay based on the Leitner system: 2^(cat-1) days
         const daysToAdd = Math.pow(2, card.category - 1);
         const nextDate = new Date();
         nextDate.setDate(nextDate.getDate() + daysToAdd);
@@ -157,6 +162,7 @@ export async function answerCard(req, res) {
     }
 }
 
+// Specifically handles the individual user progress on a card
 export async function submitReview(req, res) {
   try {
     const { id } = req.params; 
@@ -164,6 +170,7 @@ export async function submitReview(req, res) {
 
     let progress = await CardProgress.findOne({ userId: userId, cardId: id });
 
+    // Initializes tracking if this is the first time the user reviews this card
     if (!progress) {
       progress = new CardProgress({ userId: userId, cardId: id, box: 1 });
     }

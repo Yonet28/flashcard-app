@@ -5,6 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
+  // Folders to ignore
   globalIgnores(['dist']),
   {
     files: ['**/*.{js,jsx}'],
@@ -23,6 +24,7 @@ export default defineConfig([
       },
     },
     rules: {
+      // Custom rule for unused variables (allows Uppercase/Underscore)
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },

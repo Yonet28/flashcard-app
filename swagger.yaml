@@ -1,27 +1,28 @@
 openapi: 3.0.0
 info:
   title: FlashMaster API
-  description: API for managing flashcards
+  description: API for managing flashcards with Leitner system progression.
   version: 1.0.0
+
+# --- SERVER CONFIGURATION ---
+# Updated to port 5000 as defined in your index.js
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:5000
     description: Development Server
 
 paths:
-  # --- USERS ROUTES ---
-  /users/register:
+  # --- AUTHENTICATION ROUTES (Mounted on /auth) ---
+  /auth/register:
     post:
       summary: Register a new user
-      tags: [Users]
+      tags: [Auth]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - username
-                - password
+              required: [username, password]
               properties:
                 username:
                   type: string
@@ -31,21 +32,19 @@ paths:
         201:
           description: User created successfully
         400:
-          description: Error (username taken or missing data)
+          description: Username taken or invalid data
 
-  /users/login:
+  /auth/login:
     post:
       summary: User login
-      tags: [Users]
+      tags: [Auth]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - username
-                - password
+              required: [username, password]
               properties:
                 username:
                   type: string
@@ -61,7 +60,9 @@ paths:
                 properties:
                   userId:
                     type: string
-                  token:         
+                  token:
+                    type: string
+                  role:
                     type: string
         401:
           description: Invalid credentials
@@ -69,7 +70,7 @@ paths:
   # --- FOLDERS ROUTES ---
   /folders:
     get:
-      summary: Get all folders for a user
+      summary: Get all folders for a user (including global ones)
       tags: [Folders]
       parameters:
         - in: query
@@ -82,7 +83,7 @@ paths:
           description: List of folders
     
     post:
-      summary: Create a new folder
+      summary: Create a new folder (Global if admin)
       tags: [Folders]
       requestBody:
         required: true
@@ -90,9 +91,7 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - name
-                - userId
+              required: [name, userId]
               properties:
                 name:
                   type: string
@@ -109,18 +108,16 @@ paths:
       parameters:
         - in: path
           name: id
+          required: true
           schema:
             type: string
-          required: true
-          description: The folder ID
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - userId
+              required: [userId]
               properties:
                 userId:
                   type: string
@@ -129,22 +126,21 @@ paths:
           description: Folder and content deleted
         403:
           description: Forbidden (Not owner or admin)
-        404:
-          description: Folder not found
+
   # --- CARDS ROUTES ---
   /cards:
     get:
-      summary: Get all cards (optionally filtered by user)
+      summary: Get all cards for a user (personal + global)
       tags: [Cards]
       parameters:
         - in: query
           name: userId
+          required: true
           schema:
             type: string
-          required: true
       responses:
         200:
-          description: List of cards
+          description: List of personalized cards with progress
         400:
           description: Missing UserId
 
@@ -157,10 +153,7 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - question
-                - answer
-                - userId
+              required: [question, answer, userId]
               properties:
                 question:
                   type: string
@@ -176,14 +169,14 @@ paths:
 
   /cards/{id}:
     put:
-      summary: Update a card
+      summary: Update a card's content
       tags: [Cards]
       parameters:
         - in: path
           name: id
+          required: true
           schema:
             type: string
-          required: true
       requestBody:
         required: true
         content:
@@ -196,18 +189,12 @@ paths:
                 answer:
                   type: string
                 userId:
-                   type: string
-                category:
-                   type: integer
-                   description: Current Leitner level (1-7)
-                nextReviewAt:
-                   type: string
-                   format: date-time
-                   description: Next review date
+                  type: string
+                userRole:
+                  type: string
       responses:
         200:
           description: Card updated
-
 
     delete:
       summary: Delete a card
@@ -215,22 +202,77 @@ paths:
       parameters:
         - in: path
           name: id
+          required: true
           schema:
             type: string
-          required: true
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - userId
+              required: [userId]
               properties:
                 userId:
                   type: string
       responses:
         200:
           description: Card deleted
+
+  # --- PROGRESS & REVIEW ROUTES ---
+  # Added according to your latest router endpoints
+  /cards/{id}/review:
+    post:
+      summary: Submit a review result (Updates CardProgress)
+      tags: [Cards]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, isValid]
+              properties:
+                userId:
+                  type: string
+                isValid:
+                  type: boolean
+      responses:
+        200:
+          description: Progress updated
+
+  /cards/{id}/answer:
+    patch:
+      summary: Update card progression level (Leitner logic)
+      tags: [Cards]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, isValid]
+              properties:
+                userId:
+                  type: string
+                isValid:
+                  type: boolean
+      responses:
+        200:
+          description: Answer processed
+        400:
+          description: Too early for review
         403:
-          description: Forbidden (Not owner or admin)
+          description: Unauthorized
